@@ -1,0 +1,10 @@
+metric,value
+inquiries,46
+firstResponseHoursAvg,0
+cycleTimeDaysAvg,10.73
+conversionRate,0.49
+dataErrorRate,0
+blockedInvalidSubmissions,14
+manualTouchesPerInquiry,2.09
+automatedShare,0.79
+remindersSent,66

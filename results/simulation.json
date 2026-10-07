@@ -1,0 +1,55 @@
+{
+  "seed": 20261001,
+  "inquiriesValid": 46,
+  "invalidBlocked": 14,
+  "statusCounts": {
+    "lost": 23,
+    "onboarded": 22,
+    "declined": 1
+  },
+  "developerActions": {
+    "call_completed": 45,
+    "quote_approved": 45,
+    "review_accepted": 5,
+    "review_declined": 1
+  },
+  "kpis": {
+    "inquiries": 46,
+    "firstResponseHoursAvg": 0,
+    "cycleTimeDaysAvg": 10.73,
+    "conversionRate": 0.49,
+    "dataErrorRate": 0,
+    "blockedInvalidSubmissions": 14,
+    "manualTouchesPerInquiry": 2.09,
+    "automatedShare": 0.79,
+    "remindersSent": 66
+  },
+  "cycleDays": [
+    9,
+    6,
+    10.5,
+    14.8,
+    13.5,
+    11.5,
+    13.3,
+    9.3,
+    5.3,
+    3.5,
+    15.8,
+    12.8,
+    12.3,
+    5.3,
+    9.8,
+    10.8,
+    15.5,
+    15.3,
+    9.3,
+    9,
+    9.5,
+    14.5
+  ],
+  "wonAfterReminder": 10,
+  "messagesSent": 304,
+  "timersCancelled": 57,
+  "timersExecuted": 78
+}
