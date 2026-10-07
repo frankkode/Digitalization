@@ -70,15 +70,17 @@ export default async function InquiryDetail({ params }: { params: Promise<{ id: 
         )}
         {quote ? (
           <>
-            <table>
-              <thead><tr><th>Work package</th><th className="num">Optimistic h</th><th className="num">Most likely h</th><th className="num">Pessimistic h</th><th className="num">PERT expected h</th></tr></thead>
-              <tbody>
-                {quote.lines.map((l) => (
-                  <tr key={l.label}><td>{l.label}</td><td className="num">{l.optimistic}</td><td className="num">{l.mostLikely}</td><td className="num">{l.pessimistic}</td><td className="num">{l.expected}</td></tr>
-                ))}
-                <tr><td><b>Total</b> (expected {quote.expectedHours} h + 1 SD {quote.standardDeviation} h)</td><td /><td /><td /><td className="num"><b>{quote.quotedHours} h</b></td></tr>
-              </tbody>
-            </table>
+            <div className="table-wrap">
+              <table>
+                <thead><tr><th>Work package</th><th className="num">Optimistic h</th><th className="num">Most likely h</th><th className="num">Pessimistic h</th><th className="num">PERT expected h</th></tr></thead>
+                <tbody>
+                  {quote.lines.map((l) => (
+                    <tr key={l.label}><td>{l.label}</td><td className="num">{l.optimistic}</td><td className="num">{l.mostLikely}</td><td className="num">{l.pessimistic}</td><td className="num">{l.expected}</td></tr>
+                  ))}
+                  <tr><td><b>Total</b> (expected {quote.expectedHours} h + 1 SD {quote.standardDeviation} h)</td><td /><td /><td /><td className="num"><b>{quote.quotedHours} h</b></td></tr>
+                </tbody>
+              </table>
+            </div>
             <p><b>EUR {quote.totalNet.toFixed(2)}</b> net · EUR {quote.totalGross.toFixed(2)} incl. VAT · status <span className="pill info">{quote.status}</span></p>
             {inq.status === "quote_draft" && (
               <form action={approveQuoteAction}><input type="hidden" name="inquiryId" value={inq.id} /><button>Approve and send to client</button></form>
@@ -99,8 +101,10 @@ export default async function InquiryDetail({ params }: { params: Promise<{ id: 
         <div className="card">
           <h2>Scheduled timers</h2>
           {tasks.length ? (
-            <table><thead><tr><th>Timer</th><th>Due</th><th>Status</th></tr></thead>
-              <tbody>{tasks.map((t) => <tr key={t.id}><td>{t.kind.replace("_", " ")}</td><td>{t.dueAt.slice(0, 16).replace("T", " ")}</td><td>{t.status}</td></tr>)}</tbody></table>
+            <div className="table-wrap">
+              <table><thead><tr><th>Timer</th><th>Due</th><th>Status</th></tr></thead>
+                <tbody>{tasks.map((t) => <tr key={t.id}><td>{t.kind.replace("_", " ")}</td><td>{t.dueAt.slice(0, 16).replace("T", " ")}</td><td>{t.status}</td></tr>)}</tbody></table>
+            </div>
           ) : <p className="muted">Timers start when the quote is sent.</p>}
         </div>
       </div>

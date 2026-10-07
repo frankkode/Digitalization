@@ -14,7 +14,7 @@ export default function RootLayout({ children }: { children: ReactNode }) {
         <header className="top">
           <div className="wrap">
             <Link href="/" className="logo">Nordiso<span>Intake automation prototype</span></Link>
-            <nav>
+            <nav className="nav" aria-label="Main navigation">
               <Link href="/intake">Client portal</Link>
               <Link href="/dashboard">Developer dashboard</Link>
               <Link href="/outbox">Outbox</Link>

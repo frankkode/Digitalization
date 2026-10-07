@@ -17,10 +17,12 @@ export default async function QuoteView({ params, searchParams }: { params: Prom
       <h1>Your quote {quote.id}</h1>
       <p className="sub">Valid for 14 days from sending. Prices in EUR.</p>
       <div className="card">
-        <table>
-          <thead><tr><th>Work package</th><th className="num">Hours (expected)</th></tr></thead>
-          <tbody>{quote.lines.map((l) => <tr key={l.label}><td>{l.label}</td><td className="num">{l.expected}</td></tr>)}</tbody>
-        </table>
+        <div className="table-wrap">
+          <table>
+            <thead><tr><th>Work package</th><th className="num">Hours (expected)</th></tr></thead>
+            <tbody>{quote.lines.map((l) => <tr key={l.label}><td>{l.label}</td><td className="num">{l.expected}</td></tr>)}</tbody>
+          </table>
+        </div>
         <p>Quoted effort <b>{quote.quotedHours} h</b> including a risk buffer · <b>EUR {quote.totalNet.toFixed(2)}</b> net · EUR {quote.totalGross.toFixed(2)} incl. VAT {(quote.vatRate * 100).toFixed(1)} %</p>
         {quote.status === "sent" && (
           <form action={decisionAction} className="row">

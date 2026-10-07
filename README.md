@@ -244,6 +244,7 @@ The redesigned To Be process in BPMN 2.0:
 ```bash
 npm test            # 18 automated tests (rules, PERT, validation, timers, full workflow)
 npm run typecheck   # strict TypeScript check
+npm run coverage    # test coverage of the automation logic (about 94% of statements)
 npm run simulate    # seeded simulation of 60 inquiries, results in results/
 ```
 

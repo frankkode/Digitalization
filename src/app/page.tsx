@@ -12,18 +12,23 @@ export default function Home() {
   ];
   return (
     <>
-      <h1>Automated client intake for Nordiso</h1>
-      <p className="sub">Proof of concept for the To Be process (IU DLBCCOEDAH01, Phase 2). Try it as a client, then continue as the developer.</p>
-      <div className="grid g3">
+      <section className="home-intro">
+        <h1>Automated client intake for Nordiso</h1>
+        <p className="sub">Proof of concept Phase 2: Try it as a client, then continue as the developer.</p>
+      </section>
+      <div className="grid g3 process-grid">
         {steps.map(([n, t, d, p]) => (
-          <div className="card" key={n}>
-            <span className="pill info">Step {n}</span> <span className="pill bad">{p}</span>
-            <h2 style={{ marginTop: 10 }}>{t}</h2>
-            <p className="muted" style={{ fontSize: 14 }}>{d}</p>
-          </div>
+          <article className="card process-card" key={n}>
+            <div className="process-tags">
+              <span className="pill info">Step {n}</span>
+              <span className="pill process-ref">{p}</span>
+            </div>
+            <h2>{t}</h2>
+            <p className="muted">{d}</p>
+          </article>
         ))}
       </div>
-      <div className="row">
+      <div className="row home-actions">
         <Link className="btn" href="/intake">Open the client portal</Link>
         <Link className="btn secondary" href="/dashboard">Open the developer dashboard</Link>
       </div>
