@@ -3,3 +3,4 @@ node_modules
 data/db.json
 .env.local
 coverage
+tsconfig.tsbuildinfo
