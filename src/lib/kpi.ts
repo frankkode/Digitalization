@@ -53,3 +53,27 @@ export function computeKpis(db: Database): KpiSnapshot {
     remindersSent: db.outbox.filter((m) => m.kind === "reminder").length,
   };
 }
+
+/**
+ * Monthly KPI export for the continuous improvement cycle (version 1.0 addition).
+ * One row per inquiry, so the developer can review the process every month (Plan, Do,
+ * Check, Act) in a spreadsheet without touching the database.
+ */
+export function inquiriesCsv(db: Database): string {
+  const header = ["inquiry_id", "created_at", "project_type", "score", "decision", "status", "first_response_h", "cycle_days", "reminders", "developer_actions"];
+  const esc = (v: unknown) => {
+    const s = v === undefined || v === null ? "" : String(v);
+    return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
+  };
+  const rows = db.inquiries.map((i) => {
+    const signed = db.events.find((e) => e.inquiryId === i.id && e.type === "contract_signed");
+    return [
+      i.id, i.createdAt, i.projectType, i.qualification?.score, i.qualification?.decision, i.status,
+      i.firstResponseAt ? r2(hoursBetween(i.createdAt, i.firstResponseAt)) : "",
+      signed ? r2(hoursBetween(i.createdAt, signed.at) / 24) : "",
+      db.outbox.filter((m) => m.inquiryId === i.id && m.kind === "reminder").length,
+      db.events.filter((e) => e.inquiryId === i.id && e.actor === "developer").length,
+    ].map(esc).join(",");
+  });
+  return [header.join(","), ...rows].join("\n") + "\n";
+}

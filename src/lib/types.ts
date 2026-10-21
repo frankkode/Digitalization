@@ -72,6 +72,8 @@ export interface Inquiry {
   createdAt: string;
   firstResponseAt?: string;
   closedAt?: string;
+  /** Set when personal data was removed after the retention period (GDPR storage limitation). */
+  anonymizedAt?: string;
 }
 
 export interface QuoteLine {
@@ -132,6 +134,13 @@ export interface OutboxMessage {
   body: string;
   kind: "acknowledgement" | "booking_link" | "call_confirmation" | "quote" | "reminder" | "decline" | "contract" | "invoice" | "lost";
   createdAt: string;
+  /** Optional file, e.g. the .ics calendar invitation of a booked call (version 1.0). */
+  attachment?: { filename: string; contentType: string; content: string };
+  /** Delivery state written by the mail adapter (transactional outbox pattern). */
+  deliveredAt?: string;
+  transport?: "smtp" | "log";
+  attempts?: number;
+  lastError?: string;
 }
 
 export interface ScheduledTask {

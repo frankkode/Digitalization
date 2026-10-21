@@ -6,7 +6,7 @@
  * audit event. The only manual steps left are the ones where judgment matters:
  * reviewing grey zone inquiries, holding the discovery call and approving the quote.
  */
-import { AVAILABILITY, BUSINESS, FOLLOW_UP } from "./config";
+import { AVAILABILITY, BUSINESS, CALL_MINUTES, FOLLOW_UP, RETENTION } from "./config";
 import { addDays, nowIso } from "./clock";
 import { newId, newToken, readDb, updateDb } from "./store";
 import type { AuditEvent, Complexity, Database, Inquiry, OutboxMessage, Quote } from "./types";
@@ -14,6 +14,7 @@ import { validateIntake } from "./automation/validation";
 import { qualify } from "./automation/qualification";
 import { estimate } from "./automation/pricing";
 import { summarize } from "./automation/summarizer";
+import { buildIcs } from "./automation/calendar";
 import { buildDepositInvoice, mockAccounting, renderContract, signatureHash, type AccountingAdapter } from "./automation/documents";
 
 export class WorkflowError extends Error {}
@@ -23,8 +24,24 @@ function log(db: Database, inquiryId: string, actor: AuditEvent["actor"], type: 
   db.events.push({ id: newId("evt"), inquiryId, at, actor, type, detail });
 }
 
-function send(db: Database, inquiryId: string, to: string, kind: OutboxMessage["kind"], subject: string, body: string, at = nowIso()): void {
-  db.outbox.push({ id: newId("msg"), inquiryId, to, kind, subject, body, createdAt: at });
+function send(db: Database, inquiryId: string, to: string, kind: OutboxMessage["kind"], subject: string, body: string, at = nowIso(),
+  attachment?: OutboxMessage["attachment"]): void {
+  db.outbox.push({ id: newId("msg"), inquiryId, to, kind, subject, body, createdAt: at, attachment });
+}
+
+/** Calendar invitation for a booked discovery call (shared by the email and the download route). */
+export function callInvitation(db: Database, inq: Inquiry): string {
+  const client = clientOf(db, inq);
+  return buildIcs({
+    uid: `${inq.id}@nordiso.intake`,
+    start: inq.callSlot!,
+    durationMinutes: CALL_MINUTES,
+    summary: "Discovery call with Nordiso",
+    description: `Project: ${inq.projectType.replace("_", " ")}. Reference ${inq.id}.`,
+    organizerEmail: process.env.MAIL_FROM_ADDRESS ?? "hello@nordiso.example",
+    attendeeEmail: client.email,
+    stampIso: nowIso(),
+  });
 }
 
 function findInquiry(db: Database, id: string): Inquiry {
@@ -134,7 +151,8 @@ export function bookCall(inquiryId: string, slotIso: string): void {
     inq.callSlot = slotIso;
     inq.status = "call_booked";
     const client = clientOf(db, inq);
-    send(db, inq.id, client.email, "call_confirmation", "Discovery call confirmed", `Your call is booked for ${slotIso} (calendar invitation attached).`);
+    send(db, inq.id, client.email, "call_confirmation", "Discovery call confirmed", `Your call is booked for ${slotIso} (calendar invitation attached).`,
+      nowIso(), { filename: "discovery-call.ics", contentType: "text/calendar; method=REQUEST", content: callInvitation(db, inq) });
     log(db, inq.id, "client", "call_booked", `Slot ${slotIso}`);
   });
 }
@@ -192,7 +210,7 @@ export function approveQuote(inquiryId: string): void {
  * Scheduler run (called by a cron job in production, by a button in the demo).
  * Rule: WHEN a timer is due AND the quote is still open THEN act; otherwise cancel it.
  */
-export function runDueTasks(at = nowIso()): { executed: number; cancelled: number } {
+export function runDueTasks(at = nowIso()): { executed: number; cancelled: number; anonymized: number } {
   return updateDb((db) => {
     let executed = 0;
     let cancelled = 0;
@@ -214,8 +232,38 @@ export function runDueTasks(at = nowIso()): { executed: number; cancelled: numbe
       task.status = "done";
       executed++;
     }
-    return { executed, cancelled };
+    const anonymized = purgeExpiredPersonalData(db, at);
+    return { executed, cancelled, anonymized };
   });
+}
+
+/**
+ * GDPR storage limitation (Art. 5(1)(e)): inquiries that were declined or lost are anonymized
+ * once the retention period has passed. Clients with a signed contract are kept, because their
+ * data is needed for the agreement and bookkeeping. Returns the number of anonymized inquiries.
+ */
+export function purgeExpiredPersonalData(db: Database, at = nowIso()): number {
+  const limit = new Date(at);
+  limit.setUTCMonth(limit.getUTCMonth() - RETENTION.unconvertedMonths);
+  let count = 0;
+  for (const inq of db.inquiries) {
+    if (inq.anonymizedAt || !inq.closedAt || !["declined", "lost"].includes(inq.status)) continue;
+    if (new Date(inq.closedAt) > limit) continue;
+    const client = db.clients.find((c) => c.id === inq.clientId);
+    const hasContract = db.inquiries.some((o) => o.clientId === inq.clientId && ["signed", "onboarded"].includes(o.status));
+    if (client && !hasContract) {
+      client.name = "Anonymized";
+      client.email = `anonymized+${client.id}@invalid`;
+      client.company = undefined;
+    }
+    inq.description = "[removed after retention period]";
+    inq.aiSummary = undefined;
+    inq.anonymizedAt = at;
+    db.outbox.filter((m) => m.inquiryId === inq.id).forEach((m) => { m.to = "anonymized"; m.body = "[removed]"; m.attachment = undefined; });
+    log(db, inq.id, "system", "data_anonymized", `Personal data removed after ${RETENTION.unconvertedMonths} months`, at);
+    count++;
+  }
+  return count;
 }
 
 // ---------------------------------------------------------------- 5 contract to cash (P6, P7)

@@ -3,7 +3,7 @@
  * Client facing intake form. Validation messages come from the same zod schema the
  * server uses, so rules are defined once.
  */
-import { useActionState } from "react";
+import { useActionState, useState } from "react";
 import { submitIntakeAction, type IntakeState } from "../actions";
 import { FEATURES } from "@/lib/config";
 
@@ -18,8 +18,12 @@ export default function IntakeForm() {
   const [state, action, pending] = useActionState<IntakeState, FormData>(submitIntakeAction, {});
   const e = state.errors ?? {};
   const v = (state.values ?? {}) as Record<string, string | string[] | boolean>;
+  // live character counter: brief but genuine inquiries get a hint instead of a rejection (Phase 2 finding)
+  const [descLength, setDescLength] = useState(((v.description as string) ?? "").trim().length);
+  const MIN = 30;
   return (
     <form action={action} className="card" noValidate>
+      {e.form && <div className="err" role="alert">{e.form}</div>}
       <div className="grid g2">
         <div>
           <label htmlFor="name">Name</label>
@@ -56,7 +60,13 @@ export default function IntakeForm() {
             ))}
           </div>
           <label htmlFor="description">Describe your project</label>
-          <textarea id="description" name="description" defaultValue={(v.description as string) ?? ""} placeholder="What should the solution do, for whom, and why now?" />
+          <textarea id="description" name="description" defaultValue={(v.description as string) ?? ""} placeholder="What should the solution do, for whom, and why now?"
+            onChange={(ev) => setDescLength(ev.target.value.trim().length)} aria-describedby="desc-hint" />
+          <div id="desc-hint" className="muted" aria-live="polite">
+            {descLength < MIN
+              ? `${MIN - descLength} more characters needed. Tip: name the users, the main tasks and any system it must connect to.`
+              : `${descLength} characters. Thank you, this helps us prepare the call.`}
+          </div>
           {e.description && <div className="err">{e.description}</div>}
           <label className="consent" style={{ marginTop: 12 }}>
             <input type="checkbox" name="consent" /> I agree that Nordiso processes this information to answer my inquiry (GDPR). Data is deleted after 12 months if no agreement is made.

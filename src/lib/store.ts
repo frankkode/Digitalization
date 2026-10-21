@@ -11,7 +11,7 @@ import path from "node:path";
 import crypto from "node:crypto";
 import type { Database } from "./types";
 
-const DB_PATH = process.env.NORDISO_DB_PATH ?? path.join(process.cwd(), "data", "db.json");
+const DB_PATH = process.env.NORDISO_DB_PATH ?? path.join(/* turbopackIgnore: true */ process.cwd(), "data", "db.json");
 
 export function emptyDb(): Database {
   return {

@@ -4,13 +4,16 @@
  */
 import { NextResponse } from "next/server";
 import { runDueTasks } from "@/lib/workflow";
+import { deliverPending } from "@/lib/automation/mailer";
 
 export const dynamic = "force-dynamic";
 
-export function GET(request: Request) {
+export async function GET(request: Request) {
   const secret = process.env.CRON_SECRET;
   if (secret && request.headers.get("authorization") !== `Bearer ${secret}`) {
     return NextResponse.json({ error: "unauthorized" }, { status: 401 });
   }
-  return NextResponse.json(runDueTasks());
+  const timers = runDueTasks();
+  const mail = await deliverPending();   // send what the timers produced
+  return NextResponse.json({ ...timers, ...mail });
 }

@@ -1,7 +1,10 @@
 # Nordiso Intake Automation
 
 **Proof of concept for automated client intake, quotation and onboarding at Nordiso.**
-Built for the IU course *Project: Digitalization and Automation Hackathon* (DLBCCOEDAH01), Phase 2.
+Built for the IU course *Project: Digitalization and Automation Hackathon* (DLBCCOEDAH01).
+**Version 1.0 (final, Phase 3).** The Phase 2 submission is preserved under the git tag `phase2-submission`.
+
+![CI](https://github.com/frankkode/Digitalization/actions/workflows/ci.yml/badge.svg)
 
 ![Developer dashboard](docs/screenshots/06-dashboard.jpg)
 
@@ -19,6 +22,7 @@ Built for the IU course *Project: Digitalization and Automation Hackathon* (DLBC
 8. [Configuration](#8-configuration)
 9. [Troubleshooting](#9-troubleshooting)
 10. [Limitations](#10-limitations)
+11. [What is new in version 1.0](#11-what-is-new-in-version-10)
 
 ---
 
@@ -65,7 +69,7 @@ Manual steps (developer) are only: **review grey zone inquiries**, **hold the ca
 ### Requirements
 
 - [Node.js](https://nodejs.org) version 20 or newer (check with `node -v`)
-- No database, no accounts and no API keys are needed
+- No database, no accounts and no API keys are needed (optional services: see [Configuration](#8-configuration))
 
 ### Run it
 
@@ -242,9 +246,9 @@ The redesigned To Be process in BPMN 2.0:
 ## 6. Tests and simulation
 
 ```bash
-npm test            # 18 automated tests (rules, PERT, validation, timers, full workflow)
+npm test            # 30 automated tests (T1 to T14: rules, PERT, timers, workflow, calendar, login, mail, GDPR, export)
 npm run typecheck   # strict TypeScript check
-npm run coverage    # test coverage of the automation logic (about 94% of statements)
+npm run coverage    # test coverage (about 88% of statements; SMTP and the live Claude call are not unit tested)
 npm run simulate    # seeded simulation of 60 inquiries, results in results/
 ```
 
@@ -272,11 +276,18 @@ src/
     dashboard/              pipeline, KPIs, inquiry detail
     quote/[token]/          client quote, contract and signature
     outbox/                 log of automated messages
-    api/automation/run/     scheduler endpoint for a cron job
+    login/                  developer login (version 1.0)
+    api/automation/run/     scheduler endpoint for a cron job (timers, retention, mail delivery)
+    api/calendar/[id]/      .ics download of a booked call
+    api/kpi/                KPI export as JSON or CSV (?format=csv)
+    api/health/             health check for monitoring
+  proxy.ts                  protects dashboard, outbox and KPI export
   lib/
     workflow.ts             workflow engine: one function per process step
     config.ts               business rules: rates, features, thresholds, timers
-    kpi.ts                  KPIs computed from the audit trail
+    kpi.ts                  KPIs computed from the audit trail, CSV export
+    auth.ts                 signed session cookie (HMAC SHA-256)
+    ratelimit.ts            spam protection for the public form and login
     store.ts                data repository (JSON file)
     automation/
       validation.ts         intake form rules and GDPR consent
@@ -284,6 +295,9 @@ src/
       pricing.ts            PERT estimation
       summarizer.ts         Claude API call with local fallback
       documents.ts          contract, signature hash, accounting adapter
+      calendar.ts           RFC 5545 calendar invitations
+      mailer.ts             outbox delivery by SMTP with retries
+.github/workflows/ci.yml    typecheck, tests and build on every push
 tests/                      Vitest test suites
 scripts/                    seed, simulation, screenshots, charts
 docs/                       screenshots and diagrams used in this README
@@ -296,11 +310,30 @@ docs/                       screenshots and diagrams used in this README
 All business settings are in **`src/lib/config.ts`** (hourly rate, VAT, deposit, feature hours, score thresholds,
 reminder days, booking times). Change a value, save, and the app uses it immediately.
 
-Optional AI: copy `.env.example` to `.env.local` and add your key:
+Optional services are switched on with environment variables. Copy `.env.example` to `.env.local` and fill in only
+what you need; without any of them the prototype runs in demo mode.
+
+| Variable | Effect when set |
+|---|---|
+| `ANTHROPIC_API_KEY` | AI summaries from the Claude API instead of the local fallback |
+| `DASHBOARD_PASSWORD` | Dashboard, outbox and KPI export require a login |
+| `SESSION_SECRET` | Separate key for signing the session cookie (recommended in production) |
+| `SMTP_HOST`, `SMTP_PORT`, `SMTP_SECURE`, `SMTP_USER`, `SMTP_PASS` | Outbox messages are sent as real emails |
+| `MAIL_FROM`, `MAIL_FROM_ADDRESS` | Sender shown in emails and calendar invitations |
+| `CRON_SECRET` | The scheduler endpoint requires `Authorization: Bearer <secret>` |
+
+Example for a local test with real email and login:
 
 ```bash
-ANTHROPIC_API_KEY=your_key_here
+DASHBOARD_PASSWORD=demo123
+SMTP_HOST=smtp.example.com
+SMTP_PORT=587
+SMTP_USER=your_user
+SMTP_PASS=your_password
+MAIL_FROM="Nordiso <hello@your-domain.fi>"
 ```
+
+Never commit `.env.local`; it is listed in `.gitignore`.
 
 ---
 
@@ -313,14 +346,45 @@ ANTHROPIC_API_KEY=your_key_here
 | Dashboard is empty | Run `npm run seed` |
 | Want a clean start | Click **Reset data** on the dashboard or run `npm run seed` |
 | AI summary says "local mock" | Normal without an API key; see Configuration |
+| Dashboard asks for a password | `DASHBOARD_PASSWORD` is set; use that value or remove it for demo mode |
+| Outbox shows "retrying" | The SMTP server refused the message; check the SMTP variables (3 attempts) |
+| "Too many submissions" | Rate limit of 5 requests in 10 minutes per address; wait or restart the app |
 
 ---
 
 ## 10. Limitations
 
-This is a proof of concept. Email, calendar, electronic signature and accounting are simulated through adapters and
-the Outbox, data is stored in a local JSON file, and the dashboard has no login. Prices and hours are illustrative
-settings. The adapters are designed so real services can be connected without changing the workflow.
+Version 1.0 is a minimum viable product for one developer, not a hardened multi user system. Electronic signature
+and accounting are still simulated through adapters (a qualified e-signature service and the accounting API need
+contracts with the providers). Data is stored in a local JSON file, which suits one server instance; the repository
+layer (`store.ts`) is the single place to change for PostgreSQL. The rate limiter is kept in memory for the same
+reason. Prices and hours are illustrative settings.
+
+---
+
+## 11. What is new in version 1.0
+
+| Feature | Why it matters | Where | Test |
+|---|---|---|---|
+| Calendar invitation (.ics, RFC 5545) | The call lands in the client's calendar, no manual invite | `calendar.ts` | T9 |
+| Real email by SMTP with retries | Messages leave the system; failures are retried, never lost | `mailer.ts` | T12 |
+| Dashboard login | Client data is only visible to the developer (GDPR, security) | `auth.ts`, `proxy.ts` | T10 |
+| Friendlier intake form | Live hint shows how much detail is still needed | `IntakeForm.tsx` | |
+| Rate limiting | Protects the public form and the login from spam and guessing | `ratelimit.ts` | T11 |
+| GDPR retention | Declined or lost inquiries are anonymized after 12 months | `workflow.ts` | T13 |
+| KPI export (CSV) | Monthly review of the KPIs in a spreadsheet (continuous improvement) | `/api/kpi?format=csv` | T14 |
+| Security headers | Content security policy, no framing, no MIME sniffing | `next.config.mjs` | |
+| Health check and CI | Monitoring and an automatic quality gate on every push | `/api/health`, `ci.yml` | |
+
+![Friendlier intake form](docs/screenshots/12-intake-live-hint.jpg)
+
+![Calendar invitation after booking](docs/screenshots/13-calendar-invite.jpg)
+
+![Developer login](docs/screenshots/14-login.jpg)
+
+![Dashboard after login with KPI export](docs/screenshots/15-dashboard-logged-in.jpg)
+
+![Outbox with delivery status](docs/screenshots/16-outbox-delivery.jpg)
 
 ---
 

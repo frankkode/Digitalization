@@ -10,7 +10,12 @@ export default async function Book({ params }: { params: Promise<{ id: string }>
   if (!inq) notFound();
   const fmt = (iso: string) => new Date(iso).toLocaleString("en-GB", { weekday: "short", day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit", timeZone: "Europe/Helsinki" });
   if (inq.callSlot) {
-    return <div className="card"><div className="notice">Your discovery call is booked for <b>{fmt(inq.callSlot)}</b> (Helsinki time). A calendar invitation was sent.</div></div>;
+    return (
+      <div className="card">
+        <div className="notice">Your discovery call is booked for <b>{fmt(inq.callSlot)}</b> (Helsinki time). A calendar invitation was sent by email.</div>
+        <a className="btn secondary" href={`/api/calendar/${inq.id}`}>Add to calendar (.ics)</a>
+      </div>
+    );
   }
   if (inq.status !== "qualified") return <div className="card">Booking is not available for this request yet.</div>;
   return (

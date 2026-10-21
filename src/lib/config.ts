@@ -66,3 +66,12 @@ export const AVAILABILITY = {
   hoursLocal: [9, 13, 16],         // start hours, 30 minute slots
   daysAhead: 10,
 } as const;
+
+/** GDPR storage limitation: personal data of inquiries that never became a contract is removed after this period. */
+export const RETENTION = { unconvertedMonths: 12 } as const;
+
+/** Discovery call length used for the calendar invitation. */
+export const CALL_MINUTES = 30;
+
+/** Spam protection for the public intake form: max submissions per client address in the window. */
+export const RATE_LIMIT = { maxRequests: 5, windowMinutes: 10 } as const;

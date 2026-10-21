@@ -1,5 +1,7 @@
 import Link from "next/link";
 import { readDb } from "@/lib/store";
+import { authEnabled } from "@/lib/auth";
+import { logoutAction } from "../actions";
 import { computeKpis } from "@/lib/kpi";
 import type { InquiryStatus } from "@/lib/types";
 import { advanceClockAction, resetAction, runAutomationAction } from "../actions";
@@ -35,6 +37,9 @@ export default function Dashboard() {
         <div className="kpi"><div className="v">{pct(k.automatedShare)}</div><div className="l">Automated steps</div><div className="t">{k.remindersSent} reminders sent</div></div>
       </div>
 
+      {!authEnabled() && (
+        <div className="notice" role="status">Demo mode: set DASHBOARD_PASSWORD in .env.local to protect the dashboard with a login.</div>
+      )}
       <div className="card row">
         <b>Automation controls</b>
         <form action={runAutomationAction}><button className="small">Run scheduler now</button></form>
@@ -42,6 +47,8 @@ export default function Dashboard() {
           <form action={advanceClockAction} key={d}><input type="hidden" name="days" value={d} /><button className="small secondary">Advance clock +{d} d</button></form>
         ))}
         <form action={resetAction}><button className="small danger">Reset data</button></form>
+        <a className="btn small secondary" href="/api/kpi?format=csv">Export KPIs (CSV)</a>
+        {authEnabled() && <form action={logoutAction}><button className="small secondary">Log out</button></form>}
         <span className="muted">In production the scheduler runs every 15 minutes (GET /api/automation/run).</span>
       </div>
 
